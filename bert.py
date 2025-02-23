@@ -4,78 +4,65 @@ import numpy as np
 from datasets import load_dataset
 from transformers import BertTokenizer, BertModel
 
-#load dataset
-dataset = load_dataset("wikimedia/wikipedia", "20231101.en", split="train")
-
-# take first 2 as example
-dataset = dataset.select(range(2))
-# for i, example in enumerate(dataset):
-#     print(f"id:{i}:")
-#     print(example)
-
-# initialize BERT Tokenizer & Model
-model_name = "bert-base-uncased"
-tokenizer = BertTokenizer.from_pretrained(model_name)
-model = BertModel.from_pretrained(model_name)
-model.eval()
-
-#device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-#model.to(device)
-
 # chunkify
-def chunkify_text(text, tokenizer, max_len=512):
-    tokens = tokenizer.encode(text, add_special_tokens=False)
-    chunk_size = max_len - 2  #thresohld for [CLS] and [SEP]
-
-    overlap = 20
-    stride = chunk_size - overlap
-    total_chunks = math.ceil(len(tokens) / stride)
-
-    chunked_tokens = []
-    for i in range(total_chunks):
-        start = i * stride
-        end = start + chunk_size
-        chunk = tokens[start:end]
-        chunk = [tokenizer.cls_token_id] + chunk + [tokenizer.sep_token_id]
-        chunked_tokens.append(chunk)
-        if end >= len(tokens):
-            break
+def chunkify_text(text, max_len=256):
+    chunked_text = []
+    for i in range(0, len(text), max_len):
+        chunk = text[i:i + max_len]
+        chunked_text.append(chunk)
+    return chunked_text
 
 
-def process_single_doc(doc_id, text, tokenizer, model, max_len=512):
+def process_single_doc(doc_id, text, model, max_len=256):
 
-    chunked_tokens = chunkify_text(text, tokenizer, max_len)
+    chunked_tokens = chunkify_text(text, max_len)
     doc_id_list = []
     vector_list = []
 
     for tokens in chunked_tokens:
-        input_ids = torch.tensor([tokens], device=model.device)
-        with torch.no_grad():
-            outputs = model(input_ids)
-        # outputs.last_hidden_state: [1, seq_length, hidden_size]
-        cls_vec = outputs.last_hidden_state[:, 0, :]  # [1, hidden_size]
-        
         doc_id_list.append(doc_id)
-        # pytorch tensor
-        vector_list.append(cls_vec.squeeze(0).cpu())  # [hidden_size]
+
+        vector_list.append(model.encode(tokens))  # [hidden_size]
 
     return doc_id_list, vector_list
 
 
-# main
-all_doc_ids = []
-all_vectors = []
+def get_doc_id_and_vector(dataset, model):
+    doc_id_list = []
+    vector_list = []
+    ## read from doc_id_list.pt and vector_list.pt if they exist
+    try:
+        doc_id_list = torch.load(f"doc_id_lists/doc_id_list_{doc_id}.pt")
+        print("doc_id_list.pt exists")
+        vector_list = torch.load(f"vector_lists/vector_list_{doc_id}.pt")
+        print("vector_list.pt exists")
+        ## skip to next doc right after the last processed doc
+        last_doc_id = doc_id_list[-1]
+        print("Resuming processing from doc_id:", last_doc_id)
 
-for row in dataset:  
-    doc_id = row["id"]
-    text = row["text"]
+        last_doc_idx = dataset["id"].index(last_doc_id)
+        ## select the remaining docs
+        dataset = dataset.select(range(last_doc_idx+1, len(dataset)))
+        print("Processing started")
+    except FileNotFoundError:
+        print("Starting processing from the beginning")
 
-    doc_id_list, vector_list = process_single_doc(doc_id, text, tokenizer, model)
+    except Exception as e:
+        print("file corrupted")
+        print("Starting processing from the beginning")
+        # return doc_id_list, vector_list
+    
+    for row in dataset:
+        print("Processing doc_id:", row["id"])
+        doc_id = row["id"]
+        text = row["text"]
+        doc_ids, vectors = process_single_doc(doc_id, text, model)
+        doc_id_list.extend(doc_ids)
+        vector_list.extend(vectors)
+        torch.save(doc_id_list, f"doc_id_lists/doc_id_list_{doc_id}.pt")
+        torch.save(vector_list, f"vector_lists/vector_list_{doc_id}.pt")
 
-    all_doc_ids.extend(doc_id_list)    # e.g. [1,1,1,2,2,2,2,...]
-    all_vectors.extend(vector_list)    # e.g. [tensor(...), tensor(...), ...]
+    print("Processing completed")
+    return doc_id_list, vector_list
 
-#----OUTPUT---
-#print("all_doc_ids:", all_doc_ids)
-#print("all_vectors (前3個):", all_vectors[:3])
 

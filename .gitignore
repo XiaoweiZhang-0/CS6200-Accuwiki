@@ -1,3 +1,11 @@
 *.npy
 *.pyc
 *pt
+*.zip
+**/wikipedia_processed/
+**/wikipedia_dataset_with_embeddings/
+.bashrc
+.vscode/
+**/wikipedia_index/
+**/wikipedia_faiss_index/
+wikipedia_dataset_with_embeddings/

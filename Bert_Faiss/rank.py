@@ -8,13 +8,14 @@ import numpy as np
 import torch
 from datasets import load_dataset
 from sentence_transformers import SentenceTransformer
+from constants import MODEL, N_PROBE
 
 # Constants
 INDEX_PATH = "wikipedia_faiss_index"  # Update this
 INDEX_FILE = "wikipedia.index"
 METADATA_FILE = "metadata.txt"
 ID_MAPPING_INDEX = "id_mapping_index.json"
-EMBEDDING_MODEL = "all-MiniLM-L6-v2"  # Update with your model name
+EMBEDDING_MODEL = MODEL  # Update with your model name
 TOP_K = 10  # Number of results to return
 
 
@@ -55,8 +56,8 @@ class WikipediaSearcher:
         if "nprobe" in self.metadata:
             self.index.nprobe = int(self.metadata["nprobe"])
         else:
-            self.index.nprobe = 64  # Default value
-
+            self.index.nprobe = N_PROBE # Default value
+        # self.index.nprobe = 16284 # Default value
         # Load ID mapping index
         mapping_index_file = os.path.join(self.index_path, ID_MAPPING_INDEX)
         if os.path.exists(mapping_index_file):
@@ -108,7 +109,7 @@ class WikipediaSearcher:
         start_time = time.time()
 
         # Generate embedding for the query
-        query_vector = self.model.encode([query])[0]
+        query_vector = self.model.encode([query], normalize_embeddings=True)[0]
         query_vector = query_vector.reshape(1, -1).astype(np.float32)
 
         # If using METRIC_INNER_PRODUCT, normalize the query vector
@@ -196,8 +197,8 @@ def search_wikipedia(query: str, top_k: int = TOP_K) -> List[Dict[str, Any]]:
 
 if __name__ == "__main__":
     # Example usage
-    query = "quantum computing applications"
-    results = search_wikipedia(query)
+    query = "Who is the president of the United States?"
+    results = search_wikipedia(query, top_k=10)
 
     # Load the dataset once before the loop
     dataset = load_dataset("wikimedia/wikipedia", "20231101.en", split="train")

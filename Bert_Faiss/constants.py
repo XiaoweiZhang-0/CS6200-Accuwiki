@@ -1,0 +1,4 @@
+MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+EMBEDDING_DIMENSION = 384
+SENTENCE_LENGTH = 256
+N_PROBE = 512

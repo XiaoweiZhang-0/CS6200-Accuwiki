@@ -410,12 +410,12 @@ if __name__ == "__main__":
     index_files = build_tfidf_index_gpu(
         processed_folder=processed_folder,
         output_folder=output_folder,
-        min_df=3,  # Appear in at least 10 documents
-        max_df=0.7,  # Appear in at most 50% of documents
+        min_df=3,  # Appear in at least 3 documents
+        max_df=0.7,  # Appear in at most 70% of documents
         max_features=150000,  # Keep top 150k terms by frequency (reduced)
         batch_size=2000,  # Process 2k documents at a time (reduced)
         file_batch_size=1,  # Process 1 file at a time to conserve memory
-        sample_size=100000,  # Sample 25k documents for vocabulary building
+        sample_size=100000,  # Sample 100k documents for vocabulary building
     )
 
     print(f"📁 Index files saved to: {output_folder}")

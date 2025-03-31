@@ -9,7 +9,7 @@ import numpy as np
 import psutil
 import torch
 from tqdm import tqdm
-
+from constants import EMBEDDING_DIMENSION, N_PROBE
 
 def print_memory_usage():
     process = psutil.Process(os.getpid())
@@ -18,9 +18,9 @@ def print_memory_usage():
 
 def build_faiss_index(dataset):
     # Configuration
-    EMBEDDING_DIM = 384  # all-MiniLM-L6-v2 dimension
+    EMBEDDING_DIM = EMBEDDING_DIMENSION
     INDEX_TYPE = "IVF4096,Flat"  # Good balance of speed/quality for 600M vectors
-    NPROBE = 128  # Search parameter - will be saved with index
+    NPROBE = N_PROBE  # Search parameter - will be saved with index
     BATCH_SIZE = 1000000  # Process this many vectors at once
     OUTPUT_PATH = "wikipedia_faiss_index"
 
@@ -59,7 +59,7 @@ def build_faiss_index(dataset):
 
     # Determine number of clusters based on dataset size
     # Rule of thumb: sqrt(N) for small datasets, 4*sqrt(N) for large ones
-    num_clusters = min(4096, int(4 * math.sqrt(num_vectors)))
+    num_clusters = min(16384, int(4 * math.sqrt(num_vectors)))
     # Ensure it's a power of 2 for efficiency
     num_clusters = 2 ** int(math.log2(num_clusters) + 0.5)
 
@@ -76,18 +76,27 @@ def build_faiss_index(dataset):
         quantizer = faiss.IndexFlatL2(EMBEDDING_DIM)
         # Create a CPU index first
         print("🔧 Creating ScalarQuantizer CPU index...")
-        cpu_index = faiss.IndexIVFScalarQuantizer(
+        # cpu_index = faiss.IndexIVFScalarQuantizer(
+        #     quantizer,
+        #     EMBEDDING_DIM,
+        #     num_clusters,
+        #     faiss.ScalarQuantizer.QT_8bit,
+        #     faiss.METRIC_INNER_PRODUCT,
+        # )
+        M = 12         # 384 / 32 = 12 subquantizers (adjust based on dim)
+        nbits = 8     # Higher bitrate for PQ
+        cpu_index = faiss.IndexIVFPQ(
             quantizer,
             EMBEDDING_DIM,
             num_clusters,
-            faiss.ScalarQuantizer.QT_8bit,
-            faiss.METRIC_INNER_PRODUCT,
+            M,
+            nbits,
         )
 
         # Convert to GPU
         print("🚀 Converting CPU index to GPU...")
         index = faiss.index_cpu_to_gpu(res, 0, cpu_index)
-        index.nprobe = NPROBE
+        # index.nprobe = NPROBE
     # else:
     #     print("🖥️ Using CPU for index building")
     #     quantizer = faiss.IndexFlatL2(EMBEDDING_DIM)
@@ -97,7 +106,9 @@ def build_faiss_index(dataset):
 
     # First, collect sample for training
     print("🧠 Collecting samples for training...")
-    train_size = min(1000000, num_vectors)  # 1M samples or entire dataset
+    # train_size = min(1000000, num_vectors)  # 1M samples or entire dataset
+    train_size = min(100 * num_clusters, num_vectors)
+
 
     # Generate random indices for training
     if num_vectors > train_size:
@@ -124,7 +135,6 @@ def build_faiss_index(dataset):
             batch = dataset.select(batch_indices)
             batch_vectors = np.array(batch["embedding"], dtype=np.float32)
 
-            print("we are here")
             # Copy batch vectors to pre-allocated array
             batch_length = len(batch_vectors)
             train_vectors[current_idx : current_idx + batch_length] = batch_vectors
@@ -150,12 +160,18 @@ def build_faiss_index(dataset):
 
     # Concatenate all vectors at once
     train_vectors = np.vstack(train_vectors)
+    M = 12
+    opq = faiss.OPQMatrix(EMBEDDING_DIM, M)
+    opq.train(train_vectors)
+    train_vectors_opq = opq.apply(train_vectors)
+
 
     # Train the index
     print("🏋️ Training the index...")
-    train_vectors = train_vectors.astype(np.float32)  # Ensure correct data type
-    index.train(train_vectors)
-    del train_vectors
+    # train_vectors = train_vectors.astype(np.float32)  # Ensure correct data type
+    train_vectors_opq = train_vectors_opq.astype(np.float32)  # Ensure correct data type
+    index.train(train_vectors_opq)
+    del train_vectors, train_vectors_opq
     gc.collect()
     print_memory_usage()
 

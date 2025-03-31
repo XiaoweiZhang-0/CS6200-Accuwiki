@@ -1,8 +1,9 @@
 # Text chunking function
 import numpy as np
+from constants import SENTENCE_LENGTH
 
-
-def chunkify_text(text, max_words=256, overlap=50):
+MAX_LEN = SENTENCE_LENGTH
+def chunkify_text(text, max_words=MAX_LEN, overlap=50):
     words = text.split()
     chunks = [
         " ".join(words[i : i + max_words])
@@ -17,7 +18,7 @@ def chunkify_text(text, max_words=256, overlap=50):
 
 
 # Process a batch of documents
-def process_batch(model, device, batch, max_len=256):
+def process_batch(model, device, batch, max_len=MAX_LEN):
     doc_ids, texts = batch["id"], batch["text"]
 
     chunked_texts = []
@@ -31,7 +32,7 @@ def process_batch(model, device, batch, max_len=256):
 
     # Encode using GPU-accelerated batch processing
     batch_embeddings = model.encode(
-        chunked_texts, batch_size=1024, show_progress_bar=True, device=device
+        chunked_texts, batch_size=1024, show_progress_bar=True, device=device, normalize_embeddings=True
     )
 
     ## confirm the length of batched_ids equal to the length of batch_embeddings

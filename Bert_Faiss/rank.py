@@ -8,7 +8,7 @@ import numpy as np
 import torch
 from datasets import load_dataset
 from sentence_transformers import SentenceTransformer
-from constants import MODEL, N_PROBE
+from Bert_Faiss.constants import MODEL, N_PROBE
 
 # Constants
 INDEX_PATH = "wikipedia_faiss_index"  # Update this
@@ -32,12 +32,12 @@ class WikipediaSearcher:
 
     def load_resources(self):
         """Load the FAISS index, ID mapping, and embedding model."""
-        print("🔄 Loading resources...")
+        # print("🔄 Loading resources...")
         start_time = time.time()
 
         # Load FAISS index
         index_file = os.path.join(self.index_path, INDEX_FILE)
-        print(f"📂 Loading index from {index_file}...")
+        # print(f"📂 Loading index from {index_file}...")
         self.index = faiss.read_index(index_file)
 
         # Load metadata
@@ -50,7 +50,7 @@ class WikipediaSearcher:
                     for line in lines
                     if ": " in line
                 }
-            print(f"ℹ️ Index metadata: {self.metadata}")
+            # print(f"ℹ️ Index metadata: {self.metadata}")
 
         # Set nprobe from metadata or default
         if "nprobe" in self.metadata:
@@ -66,16 +66,16 @@ class WikipediaSearcher:
 
             # Lazy loading approach - we'll only load mappings when needed
             self.mapping_info = mapping_info
-            print(
-                f"📊 ID mapping: {mapping_info['total_vectors']} vectors in {len(mapping_info['chunks'])} chunks"
-            )
+            # print(
+            #     f"📊 ID mapping: {mapping_info['total_vectors']} vectors in {len(mapping_info['chunks'])} chunks"
+            # )
 
         # Load model
-        print(f"🧠 Loading embedding model {EMBEDDING_MODEL}...")
+        # print(f"🧠 Loading embedding model {EMBEDDING_MODEL}...")
         self.model = SentenceTransformer(EMBEDDING_MODEL)
 
         elapsed_time = time.time() - start_time
-        print(f"✅ Resources loaded in {elapsed_time:.2f} seconds")
+        # print(f"✅ Resources loaded in {elapsed_time:.2f} seconds")
 
     def get_document_id(self, index: int) -> str:
         """Get the document ID for a given index."""
@@ -105,7 +105,7 @@ class WikipediaSearcher:
         Returns:
             List of results with document IDs and scores
         """
-        print(f"🔍 Searching for: {query}")
+        # print(f"🔍 Searching for: {query}")
         start_time = time.time()
 
         # Generate embedding for the query
@@ -137,7 +137,7 @@ class WikipediaSearcher:
                 )
 
         elapsed_time = time.time() - start_time
-        print(f"✅ Search completed in {elapsed_time:.4f} seconds")
+        # print(f"✅ Search completed in {elapsed_time:.4f} seconds")
 
         return results
 
@@ -179,48 +179,64 @@ def search_wikipedia(query: str, top_k: int = TOP_K) -> List[Dict[str, Any]]:
     # Optionally move to GPU for faster search
     # searcher.move_to_gpu()
 
-    # Print index stats
-    searcher.print_index_stats()
+    # # Print index stats
+    # searcher.print_index_stats()
 
     # Perform search
     results = searcher.search(query, top_k)
 
-    # Print results
-    print("\n🔎 Search results:")
+    # # Print results
+    # print("\n🔎 Search results:")
+    # for result in results:
+    #     print(
+    #         f"{result['rank']}. {result['document_id']} (Score: {result['score']:.4f})"
+    #     )
+
+    merged_results = {}
+
     for result in results:
-        print(
-            f"{result['rank']}. {result['document_id']} (Score: {result['score']:.4f})"
-        )
+        doc_id = result["document_id"]
+        if doc_id not in merged_results:
+            merged_results[doc_id] = []
+        merged_results[doc_id].append(result)
 
-    return results
-
-
-if __name__ == "__main__":
-    # Example usage
-    query = "Who is the president of the United States?"
-    results = search_wikipedia(query, top_k=10)
-
-    # Load the dataset once before the loop
     dataset = load_dataset("wikimedia/wikipedia", "20231101.en", split="train")
 
-    # Create a list of doc_ids to filter just once
-    doc_ids = [result["document_id"] for result in results]
+    doc_ids = [doc_id for doc_id in merged_results.keys()]
 
-    # Filter the dataset to get all needed documents at once
     filtered_docs = dataset.filter(lambda x: x["id"] in doc_ids)
 
-    # Create a mapping from doc_id to document for quick lookup
-    doc_map = {doc["id"]: doc for doc in filtered_docs}
+    filtered_docs_text = [doc["text"] for doc in filtered_docs]
 
-    print(f"\nTop results for query: {query} are")
-    # Now iterate through results without loading the dataset each time
-    for i, result in enumerate(results):
-        doc_id = result["document_id"]
-        score = result["score"]
-        if doc_id in doc_map:
-            doc = doc_map[doc_id]
-            print(
-                f"{i+1}. Document ID: {doc_id}, Score: {score:.4f}, Title: {doc['title']}"
-            )
-        else:
-            print(f"{i+1}. Document ID: {doc_id}, Score: {score:.4f}, Title: Not found")
+    return filtered_docs_text
+
+
+# if __name__ == "__main__":
+    # # Example usage
+    # query = "Who is the president of the United States?"
+    # results = search_wikipedia(query, top_k=10)
+
+    # # Load the dataset once before the loop
+    # dataset = load_dataset("wikimedia/wikipedia", "20231101.en", split="train")
+
+    # # Create a list of doc_ids to filter just once
+    # doc_ids = [result["document_id"] for result in results]
+
+    # # Filter the dataset to get all needed documents at once
+    # filtered_docs = dataset.filter(lambda x: x["id"] in doc_ids)
+
+    # # Create a mapping from doc_id to document for quick lookup
+    # doc_map = {doc["id"]: doc for doc in filtered_docs}
+
+    # print(f"\nTop results for query: {query} are")
+    # # Now iterate through results without loading the dataset each time
+    # for i, result in enumerate(results):
+    #     doc_id = result["document_id"]
+    #     score = result["score"]
+    #     if doc_id in doc_map:
+    #         doc = doc_map[doc_id]
+    #         print(
+    #             f"{i+1}. Document ID: {doc_id}, Score: {score:.4f}, Title: {doc['title']}"
+    #         )
+    #     else:
+    #         print(f"{i+1}. Document ID: {doc_id}, Score: {score:.4f}, Title: Not found")

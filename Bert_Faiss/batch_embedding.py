@@ -3,6 +3,8 @@ import numpy as np
 from constants import SENTENCE_LENGTH
 
 MAX_LEN = SENTENCE_LENGTH
+
+
 def chunkify_text(text, max_words=MAX_LEN, overlap=50):
     words = text.split()
     chunks = [
@@ -32,7 +34,11 @@ def process_batch(model, device, batch, max_len=MAX_LEN):
 
     # Encode using GPU-accelerated batch processing
     batch_embeddings = model.encode(
-        chunked_texts, batch_size=1024, show_progress_bar=True, device=device, normalize_embeddings=True
+        chunked_texts,
+        batch_size=1024,
+        show_progress_bar=True,
+        device=device,
+        normalize_embeddings=True,
     )
 
     ## confirm the length of batched_ids equal to the length of batch_embeddings

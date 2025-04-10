@@ -8,6 +8,7 @@ import numpy as np
 import torch
 from datasets import load_dataset
 from sentence_transformers import SentenceTransformer
+
 from Bert_Faiss.constants import MODEL, N_PROBE
 
 # Constants
@@ -56,7 +57,7 @@ class WikipediaSearcher:
         if "nprobe" in self.metadata:
             self.index.nprobe = int(self.metadata["nprobe"])
         else:
-            self.index.nprobe = N_PROBE # Default value
+            self.index.nprobe = N_PROBE  # Default value
         # self.index.nprobe = 16284 # Default value
         # Load ID mapping index
         mapping_index_file = os.path.join(self.index_path, ID_MAPPING_INDEX)
@@ -212,31 +213,31 @@ def search_wikipedia(query: str, top_k: int = TOP_K) -> List[Dict[str, Any]]:
 
 
 # if __name__ == "__main__":
-    # # Example usage
-    # query = "Who is the president of the United States?"
-    # results = search_wikipedia(query, top_k=10)
+# # Example usage
+# query = "Who is the president of the United States?"
+# results = search_wikipedia(query, top_k=10)
 
-    # # Load the dataset once before the loop
-    # dataset = load_dataset("wikimedia/wikipedia", "20231101.en", split="train")
+# # Load the dataset once before the loop
+# dataset = load_dataset("wikimedia/wikipedia", "20231101.en", split="train")
 
-    # # Create a list of doc_ids to filter just once
-    # doc_ids = [result["document_id"] for result in results]
+# # Create a list of doc_ids to filter just once
+# doc_ids = [result["document_id"] for result in results]
 
-    # # Filter the dataset to get all needed documents at once
-    # filtered_docs = dataset.filter(lambda x: x["id"] in doc_ids)
+# # Filter the dataset to get all needed documents at once
+# filtered_docs = dataset.filter(lambda x: x["id"] in doc_ids)
 
-    # # Create a mapping from doc_id to document for quick lookup
-    # doc_map = {doc["id"]: doc for doc in filtered_docs}
+# # Create a mapping from doc_id to document for quick lookup
+# doc_map = {doc["id"]: doc for doc in filtered_docs}
 
-    # print(f"\nTop results for query: {query} are")
-    # # Now iterate through results without loading the dataset each time
-    # for i, result in enumerate(results):
-    #     doc_id = result["document_id"]
-    #     score = result["score"]
-    #     if doc_id in doc_map:
-    #         doc = doc_map[doc_id]
-    #         print(
-    #             f"{i+1}. Document ID: {doc_id}, Score: {score:.4f}, Title: {doc['title']}"
-    #         )
-    #     else:
-    #         print(f"{i+1}. Document ID: {doc_id}, Score: {score:.4f}, Title: Not found")
+# print(f"\nTop results for query: {query} are")
+# # Now iterate through results without loading the dataset each time
+# for i, result in enumerate(results):
+#     doc_id = result["document_id"]
+#     score = result["score"]
+#     if doc_id in doc_map:
+#         doc = doc_map[doc_id]
+#         print(
+#             f"{i+1}. Document ID: {doc_id}, Score: {score:.4f}, Title: {doc['title']}"
+#         )
+#     else:
+#         print(f"{i+1}. Document ID: {doc_id}, Score: {score:.4f}, Title: Not found")

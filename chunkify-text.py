@@ -1,4 +1,4 @@
-def chunkify(data, max_length)-> list:
+def chunkify(data, max_length) -> list:
     """
     Chunkify the text data into smaller segments.
 

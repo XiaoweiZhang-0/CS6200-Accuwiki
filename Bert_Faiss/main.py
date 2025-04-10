@@ -6,12 +6,13 @@ import numpy as np
 import pandas as pd
 import torch
 from batch_embedding import process_batch
+from constants import MODEL
 from datasets import Dataset, load_dataset
 from faiss_index import build_faiss_index
 from sentence_transformers import SentenceTransformer
 from transformers import BertModel, BertTokenizer
-from constants import MODEL
-#load dataset
+
+# load dataset
 dataset = load_dataset("wikimedia/wikipedia", "20231101.en", split="train")
 
 # initialize sentencebert model with cuda acceleration
@@ -22,7 +23,12 @@ if confirm_device.lower() != "y":
 model = SentenceTransformer(MODEL, device=device)
 
 # Apply batch processing
-processed_data = dataset.map(lambda batch: process_batch(model, device, batch), batched=True, batch_size=1024, remove_columns=["text", "title", "url"])
+processed_data = dataset.map(
+    lambda batch: process_batch(model, device, batch),
+    batched=True,
+    batch_size=1024,
+    remove_columns=["text", "title", "url"],
+)
 
 # Save processed_data to disk
 # processed_data.save_to_disk("wikipedia_dataset_with_embeddings")
@@ -33,6 +39,3 @@ processed_data = Dataset.load_from_disk("wikipedia_dataset_with_embeddings")
 
 
 build_faiss_index(processed_data)
-
-
-

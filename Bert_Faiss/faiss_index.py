@@ -8,8 +8,9 @@ import faiss
 import numpy as np
 import psutil
 import torch
-from tqdm import tqdm
 from constants import EMBEDDING_DIMENSION, N_PROBE
+from tqdm import tqdm
+
 
 def print_memory_usage():
     process = psutil.Process(os.getpid())
@@ -83,8 +84,8 @@ def build_faiss_index(dataset):
         #     faiss.ScalarQuantizer.QT_8bit,
         #     faiss.METRIC_INNER_PRODUCT,
         # )
-        M = 12         # 384 / 32 = 12 subquantizers (adjust based on dim)
-        nbits = 8     # Higher bitrate for PQ
+        M = 12  # 384 / 32 = 12 subquantizers (adjust based on dim)
+        nbits = 8  # Higher bitrate for PQ
         cpu_index = faiss.IndexIVFPQ(
             quantizer,
             EMBEDDING_DIM,
@@ -108,7 +109,6 @@ def build_faiss_index(dataset):
     print("🧠 Collecting samples for training...")
     # train_size = min(1000000, num_vectors)  # 1M samples or entire dataset
     train_size = min(100 * num_clusters, num_vectors)
-
 
     # Generate random indices for training
     if num_vectors > train_size:
@@ -164,7 +164,6 @@ def build_faiss_index(dataset):
     opq = faiss.OPQMatrix(EMBEDDING_DIM, M)
     opq.train(train_vectors)
     train_vectors_opq = opq.apply(train_vectors)
-
 
     # Train the index
     print("🏋️ Training the index...")

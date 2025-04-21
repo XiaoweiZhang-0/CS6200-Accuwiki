@@ -6,8 +6,39 @@ from urllib.parse import urlparse, parse_qs
 import json 
 import os
 import lmdb
-from retrieve_docs import get_bert_result
-from retriever_evaluator import title_from_url
+from collections import defaultdict
+
+def title_from_url(url):
+    # Parse the URL
+    parsed = urlparse(url)
+    
+    # Check domain
+    if "wikipedia.org" not in parsed.netloc:
+        return None  # Not a Wikipedia link
+    
+    # Possible forms:
+    # 1) /wiki/Page_Name
+    # 2) /w/index.php?title=Page_Name (& oldid=123)
+    path_parts = parsed.path.strip("/").split("/")
+    
+    # /wiki/Page_Name case
+    if len(path_parts) > 1 and path_parts[0] == "wiki":
+        page_name = path_parts[1]
+    
+    # /w/index.php?title=Page_Name case
+    if len(path_parts) > 0 and path_parts[0] == "w":
+        query_params = parse_qs(parsed.query)
+        if "title" in query_params:
+            page_name = query_params["title"][0]
+    return page_name
+
+def get_bert_result(query):
+    BF_rank = WikipediaSearcher()
+    BF_scores = BF_rank.search(query)
+    bf_dict = defaultdict(lambda: 0, {r["document_id"]: r["score"] for r in BF_scores})# [{}]
+    top_10_docs = [doc_id for doc_id, _ in sorted(bf_dict.items(), key=lambda x: x[1], reverse=True)]
+    return top_10_docs
+
 # load NQ, filer first 10 query begining with "what", save query-url pair as parameter
 def get_query_url_pair():
     # Check if filtered data already exists
